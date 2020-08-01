@@ -1,24 +1,26 @@
-import express, { Application } from "express";
-import socketIO, { Server as SocketIOServer } from "socket.io";
-import { createServer, Server as HTTPServer } from "http";
-import path from "path";
+import express from "express";
+import socketIO from "socket.io";
+import http from "http";
+import { fileURLToPath } from 'url';
+import path, { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const DEFAULT_PORT = 5000;
 
 export class Server {
-  private httpServer: HTTPServer;
-  private app: Application;
-  private io: SocketIOServer;
+  app = express();
 
-  private activeSockets: string[] = [];
-
-  private readonly DEFAULT_PORT = 5000;
+  activeSockets = [];
 
   constructor() {
     this.initialize();
   }
 
-  private initialize(): void {
+  initialize() {
     this.app = express();
-    this.httpServer = createServer(this.app);
+    this.httpServer = http.createServer(this.app);
     this.io = socketIO(this.httpServer);
 
     this.configureApp();
@@ -26,17 +28,17 @@ export class Server {
     this.handleSocketConnection();
   }
 
-  private configureApp(): void {
-    this.app.use(express.static(path.join(__dirname, "../public")));
+  configureApp() {
+    this.app.use(express.static(path.join( __dirname, "../public")));
   }
 
-  private configureRoutes(): void {
+  configureRoutes() {
     this.app.get("/", (req, res) => {
       res.sendFile("index.html");
     });
   }
 
-  private handleSocketConnection(): void {
+  handleSocketConnection() {
     this.io.on("connection", socket => {
       const existingSocket = this.activeSockets.find(
         existingSocket => existingSocket === socket.id
@@ -56,7 +58,7 @@ export class Server {
         });
       }
 
-      socket.on("call-user", (data: any) => {
+      socket.on("call-user", data => {
         socket.to(data.to).emit("call-made", {
           offer: data.offer,
           socket: socket.id
@@ -87,9 +89,7 @@ export class Server {
     });
   }
 
-  public listen(callback: (port: number) => void): void {
-    this.httpServer.listen(process.env.PORT, () => {
-      callback(this.DEFAULT_PORT);
-    });
+  listen() {
+    this.httpServer.listen(process.env.PORT || DEFAULT_PORT);
   }
 }
